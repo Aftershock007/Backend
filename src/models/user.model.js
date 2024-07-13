@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs"
 
 const userSchema = new Schema(
   {
+    name: {
+      type: String,
+      required: [true, "Name is required"],
+      trim: true
+    },
     username: {
       type: String,
       required: [true, "Username is required"],
@@ -19,17 +24,15 @@ const userSchema = new Schema(
       lowercase: true,
       trim: true
     },
-    name: {
+    password: {
       type: String,
-      required: [true, "Name is required"],
-      trim: true
+      required: [true, "Password is required"]
     },
     avatar: {
       type: String
     },
-    password: {
-      type: String,
-      required: [true, "Password is required"]
+    refreshToken: {
+      type: String
     }
   },
   {
@@ -39,7 +42,7 @@ const userSchema = new Schema(
 
 userSchema.pre("save", async function (next) {
   if (this.isModified("password")) {
-    this.password = bcrypt.hash(this.password, 10)
+    this.password = await bcrypt.hash(this.password, 10)
   }
   next()
 })
@@ -48,7 +51,7 @@ userSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password)
 }
 
-userSchema.methods.generateAccessToken = async function () {
+userSchema.methods.generateAccessToken = function () {
   return jwt.sign(
     {
       _id: this._id,
