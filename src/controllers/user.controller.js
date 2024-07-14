@@ -8,7 +8,7 @@ import { generateAccessAndRefreshTokens } from "../utils/generateAccessAndRefres
 import { options } from "../constants.js"
 import jwt from "jsonwebtoken"
 
-const registerUser = asyncHandler(async (req, res) => {
+const registerUser = asyncHandler(async (req, res, next) => {
   const { name, username, email, password } = req.body
   if (
     [name, username, email, password].some(
@@ -29,7 +29,7 @@ const registerUser = asyncHandler(async (req, res) => {
     $or: [{ username }, { email }]
   })
   if (existedUser) {
-    throw new ApiError(409, "User with email or username already exists")
+    throw new ApiError(409, "User with same email or username already exists")
   }
 
   let avatarLocalPath = ""
@@ -60,19 +60,25 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Something went wrong while registering the user")
   }
 
+  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+    user._id
+  )
+
   return res
     .status(201)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
     .json(new ApiResponse(201, createdUser, "User registered successfully"))
 })
 
 const loginUser = asyncHandler(async (req, res) => {
-  const { username, email, password } = req.body
-  if (!username && !email) {
+  const { usernameOrEmail, password } = req.body
+  if (!usernameOrEmail) {
     throw new ApiError(400, "Username or Email is required")
   }
 
   const user = await User.findOne({
-    $or: [{ username }, { email }]
+    $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }]
   })
   if (!user) {
     throw new ApiError(404, "User does not exists")
@@ -165,6 +171,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
+  // console.log(req.cookies)
   return res
     .status(200)
     .json(new ApiResponse(200, req.user, "Current user fetched successfully"))
@@ -206,14 +213,14 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     if (username) {
       if (existingUser.username === username) {
         throw new ApiError(
-          401,
+          409,
           "The username is the same as the previous one, please choose a different Username."
         )
       }
       const existingUserByUsername = await User.findOne({ username })
       if (existingUserByUsername) {
         throw new ApiError(
-          401,
+          409,
           "The username is already taken, please choose a different Username."
         )
       }
@@ -222,14 +229,14 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     if (email) {
       if (existingUser.email === email) {
         throw new ApiError(
-          401,
+          409,
           "The email is the same as the previous one, please choose a different Email."
         )
       }
       const existingUserByEmail = await User.findOne({ email })
       if (existingUserByEmail) {
         throw new ApiError(
-          401,
+          409,
           "The email address is already in use, please choose a different Email."
         )
       }
