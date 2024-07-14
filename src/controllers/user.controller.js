@@ -81,7 +81,10 @@ const loginUser = asyncHandler(async (req, res) => {
     $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }]
   })
   if (!user) {
-    throw new ApiError(404, "User does not exists")
+    throw new ApiError(
+      404,
+      "User does not exists please enter valid credentials"
+    )
   }
 
   const isPasswordValid = await user.isPasswordCorrect(password)
@@ -171,10 +174,14 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  // console.log(req.cookies)
   return res
     .status(200)
     .json(new ApiResponse(200, req.user, "Current user fetched successfully"))
+})
+
+const isCookiesExists = asyncHandler(async (req, res) => {
+  const cookiesExist = Object.keys(req.cookies).length > 0
+  return res.status(200).json(cookiesExist)
 })
 
 const updateCurrentPassword = asyncHandler(async (req, res) => {
@@ -305,6 +312,7 @@ export {
   logoutUser,
   refreshAccessToken,
   getCurrentUser,
+  isCookiesExists,
   updateCurrentPassword,
   updateAccountDetails,
   updateUserAvatar

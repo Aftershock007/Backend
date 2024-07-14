@@ -5,6 +5,7 @@ import {
   logoutUser,
   refreshAccessToken,
   getCurrentUser,
+  isCookiesExists,
   updateCurrentPassword,
   updateAccountDetails,
   updateUserAvatar
@@ -26,12 +27,14 @@ router.route("/register").post(
 
 router.route("/login").post(loginUser)
 
+router.route("/cookies-exists").get(isCookiesExists)
+
 // secured routes
+router.route("/user").get(verifyJWT, getCurrentUser)
+
 router.route("/logout").post(verifyJWT, logoutUser)
 
 router.route("/refresh-token").post(verifyJWT, refreshAccessToken)
-
-router.route("/user").get(verifyJWT, getCurrentUser)
 
 router.route("/update-password").post(verifyJWT, updateCurrentPassword)
 
