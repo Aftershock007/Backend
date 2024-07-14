@@ -164,8 +164,19 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 })
 
-const changeCurrentPassword = asyncHandler(async (req, res) => {
+const getCurrentUser = asyncHandler(async (req, res) => {
+  console.log(req.user)
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"))
+})
+
+const updateCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword, confirmPassword } = req.body
+
+  if (oldPassword === newPassword) {
+    throw new ApiError(400, "Old password and new password can not be same")
+  }
 
   if (newPassword !== confirmPassword) {
     throw new ApiError(400, "New password and confirm password does not match")
@@ -185,16 +196,45 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, {}, "Password changed successfully"))
 })
 
-const getCurrentUser = asyncHandler(async (req, res) => {
-  return res
-    .status(200)
-    .json(200, req.user, "Current user fetched successfully")
-})
-
 const updateAccountDetails = asyncHandler(async (req, res) => {
   const { name, username, email } = req.body
   if (!name && !username && !email) {
     throw new ApiError(400, "Name, Username or Email is required")
+  }
+
+  if (username || email) {
+    const existingUser = await User.findById(req.user?._id)
+    if (username) {
+      if (existingUser.username === username) {
+        throw new ApiError(
+          401,
+          "The username is the same as the previous one, please choose a different Username."
+        )
+      }
+      const existingUserByUsername = await User.findOne({ username })
+      if (existingUserByUsername) {
+        throw new ApiError(
+          401,
+          "The username is already taken, please choose a different Username."
+        )
+      }
+    }
+
+    if (email) {
+      if (existingUser.email === email) {
+        throw new ApiError(
+          401,
+          "The email is the same as the previous one, please choose a different Email."
+        )
+      }
+      const existingUserByEmail = await User.findOne({ email })
+      if (existingUserByEmail) {
+        throw new ApiError(
+          401,
+          "The email address is already in use, please choose a different Email."
+        )
+      }
+    }
   }
 
   const updateFields = {}
@@ -206,18 +246,6 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   }
   if (email) {
     updateFields.email = email
-  }
-
-  if (updateFields.username || updateFields.email) {
-    const existingUser = await User.findOne({
-      $or: [{ updatedUsername }, { updatedEmail }]
-    })
-    if (existingUser) {
-      throw new ApiError(
-        401,
-        "User already exists please change Username or Email"
-      )
-    }
   }
 
   const user = await User.findByIdAndUpdate(
@@ -234,7 +262,15 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.file?.path
+  let avatarLocalPath = ""
+  if (
+    req.files &&
+    Array.isArray(req.files.avatar) &&
+    req.files.avatar.length > 0
+  ) {
+    avatarLocalPath = req.files.avatar[0].path
+  }
+
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar image is missing")
   }
@@ -262,8 +298,8 @@ export {
   loginUser,
   logoutUser,
   refreshAccessToken,
-  changeCurrentPassword,
   getCurrentUser,
+  updateCurrentPassword,
   updateAccountDetails,
   updateUserAvatar
 }
